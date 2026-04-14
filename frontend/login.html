@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="ru">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Вход — Messenger</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;0,14..32,800;1,14..32,400&display=swap"
+            rel="stylesheet"
+        />
+        <link rel="stylesheet" href="css/style.css" />
+    </head>
+    <body>
+        <div class="auth-container">
+            <div class="auth-card" id="authCard">
+                <!-- Логотип и заголовок -->
+                <div class="card-header">
+                    <div class="card-logo">
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="32"
+                            height="32"
+                            viewBox="0 0 48 48"
+                            fill="none"
+                            aria-hidden="true"
+                        >
+                            <path
+                                d="M10 14a4 4 0 0 1 4-4h20a4 4 0 0 1 4 4v14a4 4 0 0 1-4 4H28l-4 5-4-5H14a4 4 0 0 1-4-4V14z"
+                                fill="#ffffff"
+                            />
+                            <circle cx="18" cy="21" r="2" fill="#7c5cbf" />
+                            <circle cx="24" cy="21" r="2" fill="#7c5cbf" />
+                            <circle cx="30" cy="21" r="2" fill="#7c5cbf" />
+                        </svg>
+                    </div>
+                    <h1>Добро пожаловать</h1>
+                    <p>Войдите в свой аккаунт</p>
+                </div>
+
+                <!-- Форма входа -->
+                <form id="loginForm" novalidate autocomplete="off">
+                    <!-- Электронная почта -->
+                    <div class="form-group">
+                        <label for="loginEmail">Электронная почта</label>
+                        <div class="input-wrapper">
+                            <input
+                                type="email"
+                                id="loginEmail"
+                                name="email"
+                                placeholder="example@mail.com"
+                                autocomplete="email"
+                                spellcheck="false"
+                            />
+                        </div>
+                    </div>
+
+                    <!-- Пароль -->
+                    <div class="form-group">
+                        <label for="loginPassword">Пароль</label>
+                        <div class="input-wrapper">
+                            <input
+                                type="password"
+                                id="loginPassword"
+                                name="password"
+                                placeholder="Введите пароль"
+                                autocomplete="current-password"
+                            />
+                            <button
+                                type="button"
+                                class="toggle-password"
+                                id="toggleLoginPassword"
+                                aria-label="Показать пароль"
+                                tabindex="-1"
+                            >
+                                <!-- Глаз открытый — пароль скрыт -->
+                                <svg
+                                    class="icon-eye"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    width="20"
+                                    height="20"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="2"
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    aria-hidden="true"
+                                >
+                                    <path
+                                        d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"
+                                    />
+                                    <circle cx="12" cy="12" r="3" />
+                                </svg>
+                                <!-- Глаз закрытый — пароль виден -->
+                                <svg
+                                    class="icon-eye-off"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    width="20"
+                                    height="20"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="2"
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    aria-hidden="true"
+                                    style="display: none"
+                                >
+                                    <path
+                                        d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8
+                         a18.45 18.45 0 0 1 5.06-5.94"
+                                    />
+                                    <path
+                                        d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8
+                         a18.5 18.5 0 0 1-2.16 3.19"
+                                    />
+                                    <line x1="1" y1="1" x2="23" y2="23" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Кнопка входа -->
+                    <button type="submit" class="btn-primary" id="loginBtn">
+                        <span class="spinner" aria-hidden="true"></span>
+                        <span class="btn-text">Войти</span>
+                    </button>
+                </form>
+
+                <!-- Сообщение об ошибке / успехе -->
+                <div
+                    id="loginMessage"
+                    role="alert"
+                    aria-live="assertive"
+                    style="display: none"
+                ></div>
+
+                <!-- Ссылка на регистрацию -->
+                <div class="card-footer">
+                    <p>
+                        Нет аккаунта?
+                        <a href="register.html">Зарегистрироваться</a>
+                    </p>
+                </div>
+            </div>
+            <!-- /.auth-card -->
+        </div>
+        <!-- /.auth-container -->
+
+        <script src="js/config.js"></script>
+        <script src="js/login.js"></script>
+    </body>
+</html>

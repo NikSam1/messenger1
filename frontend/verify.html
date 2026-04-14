@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="ru">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Подтверждение почты — Messenger</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;0,14..32,800;1,14..32,400&display=swap"
+            rel="stylesheet"
+        />
+        <link rel="stylesheet" href="css/style.css" />
+        <style>
+            /* Выделение email-адреса в подзаголовке */
+            .email-highlight {
+                color: #9b7de0;
+                font-weight: 600;
+                word-break: break-all;
+            }
+
+            /* Секция повторной отправки */
+            .resend-section {
+                text-align: center;
+                margin-top: 16px;
+            }
+
+            .resend-text {
+                font-size: 0.875rem;
+                color: #9090a8;
+                margin-bottom: 4px;
+            }
+
+            .countdown-text {
+                display: block;
+                font-size: 0.82rem;
+                font-weight: 600;
+                color: #5a5a72;
+                margin-top: 4px;
+                min-height: 1.2em;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="auth-container">
+            <div class="auth-card" id="authCard">
+                <!-- Заголовок страницы -->
+                <div class="card-header">
+                    <!-- Иконка конверта -->
+                    <div class="card-logo">
+                        <svg
+                            width="32"
+                            height="32"
+                            viewBox="0 0 32 32"
+                            fill="none"
+                            xmlns="http://www.w3.org/2000/svg"
+                            aria-hidden="true"
+                        >
+                            <rect
+                                x="2"
+                                y="6"
+                                width="28"
+                                height="20"
+                                rx="3"
+                                stroke="#fff"
+                                stroke-width="2"
+                                fill="none"
+                            />
+                            <path
+                                d="M2 10l14 9 14-9"
+                                stroke="#fff"
+                                stroke-width="2"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                            />
+                        </svg>
+                    </div>
+
+                    <h1>Подтвердите почту</h1>
+                    <p>
+                        Введите 6-значный код, отправленный на
+                        <span id="emailDisplay" class="email-highlight">…</span>
+                    </p>
+                </div>
+
+                <!-- Форма ввода OTP-кода -->
+                <form id="verifyForm" novalidate>
+                    <!-- Шесть ячеек для цифр кода -->
+                    <div class="form-group">
+                        <div
+                            class="code-inputs"
+                            id="codeInputs"
+                            role="group"
+                            aria-label="Поле ввода кода подтверждения"
+                        >
+                            <input
+                                type="text"
+                                maxlength="1"
+                                class="code-input"
+                                inputmode="numeric"
+                                pattern="[0-9]"
+                                autocomplete="one-time-code"
+                                aria-label="Цифра 1"
+                            />
+                            <input
+                                type="text"
+                                maxlength="1"
+                                class="code-input"
+                                inputmode="numeric"
+                                pattern="[0-9]"
+                                aria-label="Цифра 2"
+                            />
+                            <input
+                                type="text"
+                                maxlength="1"
+                                class="code-input"
+                                inputmode="numeric"
+                                pattern="[0-9]"
+                                aria-label="Цифра 3"
+                            />
+                            <input
+                                type="text"
+                                maxlength="1"
+                                class="code-input"
+                                inputmode="numeric"
+                                pattern="[0-9]"
+                                aria-label="Цифра 4"
+                            />
+                            <input
+                                type="text"
+                                maxlength="1"
+                                class="code-input"
+                                inputmode="numeric"
+                                pattern="[0-9]"
+                                aria-label="Цифра 5"
+                            />
+                            <input
+                                type="text"
+                                maxlength="1"
+                                class="code-input"
+                                inputmode="numeric"
+                                pattern="[0-9]"
+                                aria-label="Цифра 6"
+                            />
+                        </div>
+                    </div>
+
+                    <!-- Кнопка подтверждения -->
+                    <button type="submit" class="btn-primary" id="verifyBtn">
+                        <span class="btn-text">Подтвердить</span>
+                        <span
+                            class="spinner"
+                            id="verifySpinner"
+                            aria-hidden="true"
+                        ></span>
+                    </button>
+                </form>
+
+                <!-- Сообщение об ошибке / успехе (скрыто по умолчанию) -->
+                <div
+                    id="verifyMessage"
+                    role="alert"
+                    aria-live="polite"
+                    style="display: none"
+                ></div>
+
+                <!-- Секция повторной отправки кода -->
+                <div class="resend-section">
+                    <p class="resend-text">
+                        Не получили код?
+                        <button
+                            type="button"
+                            id="resendBtn"
+                            class="btn-link"
+                            disabled
+                        >
+                            Отправить повторно
+                        </button>
+                    </p>
+                    <span
+                        id="resendCountdown"
+                        class="countdown-text"
+                        aria-live="polite"
+                    ></span>
+                </div>
+
+                <!-- Ссылка «назад» и ссылка на вход -->
+                <div class="card-footer">
+                    <a href="register.html" class="back-link"
+                        >← Вернуться к регистрации</a
+                    >
+                </div>
+            </div>
+            <!-- /.auth-card -->
+        </div>
+        <!-- /.auth-container -->
+
+        <script src="js/config.js"></script>
+        <script src="js/verify.js"></script>
+    </body>
+</html>

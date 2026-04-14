@@ -1,0 +1,715 @@
+/* ============================================================
+   Messenger — стили для страниц авторизации и регистрации
+   ============================================================ */
+
+/* ── CSS-переменные (цветовая палитра) ── */
+:root {
+    /* Фоновые цвета */
+    --bg-root: #0f0f13;
+    --bg-card: #1a1a24;
+    --bg-input: #242433;
+    --bg-input-focus: #2a2a3d;
+
+    /* Акцентный цвет — фиолетовый */
+    --accent: #7c5cbf;
+    --accent-light: #9b7de0;
+    --accent-dark: #5e3fa3;
+    --accent-glow: rgba(124, 92, 191, 0.35);
+
+    /* Градиент для кнопки */
+    --gradient-btn: linear-gradient(135deg, #7c5cbf 0%, #5e3fa3 100%);
+    --gradient-hover: linear-gradient(135deg, #9b7de0 0%, #7c5cbf 100%);
+
+    /* Текст */
+    --text-primary: #e8e8f0;
+    --text-secondary: #9090a8;
+    --text-muted: #5a5a72;
+    --text-link: #9b7de0;
+
+    /* Границы */
+    --border-color: rgba(255, 255, 255, 0.08);
+    --border-focus: #7c5cbf;
+
+    /* Состояния */
+    --error-color: #e05555;
+    --error-bg: rgba(224, 85, 85, 0.12);
+    --error-border: rgba(224, 85, 85, 0.35);
+
+    --success-color: #4caf7d;
+    --success-bg: rgba(76, 175, 125, 0.12);
+    --success-border: rgba(76, 175, 125, 0.35);
+
+    /* Индикатор силы пароля */
+    --strength-weak: #e05555;
+    --strength-fair: #e09a35;
+    --strength-medium: #e0c835;
+    --strength-strong: #4caf7d;
+    --strength-very-strong: #2dd4bf;
+
+    /* Прочее */
+    --radius-card: 16px;
+    --radius-input: 10px;
+    --radius-btn: 10px;
+    --shadow-card:
+        0 24px 64px rgba(0, 0, 0, 0.55), 0 4px 16px rgba(0, 0, 0, 0.35);
+    --transition: 0.2s ease;
+}
+
+/* ── Сброс и базовые стили ── */
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html,
+body {
+    height: 100%;
+}
+
+body {
+    font-family:
+        "Inter",
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        Roboto,
+        "Helvetica Neue",
+        Arial,
+        sans-serif;
+    background-color: var(--bg-root);
+    color: var(--text-primary);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Фоновый узор (тонкая сетка) ── */
+body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background-image:
+        linear-gradient(rgba(124, 92, 191, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(124, 92, 191, 0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+}
+
+/* ── Основной контейнер (центрирование) ── */
+.auth-container {
+    position: relative;
+    z-index: 1;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px 16px;
+}
+
+/* ── Карточка формы ── */
+.auth-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-card);
+    padding: 40px;
+    width: 100%;
+    max-width: 440px;
+    box-shadow: var(--shadow-card);
+    animation: fadeInCard 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* ── Шапка карточки ── */
+.card-header {
+    text-align: center;
+    margin-bottom: 32px;
+}
+
+.card-logo {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 60px;
+    height: 60px;
+    background: var(--gradient-btn);
+    border-radius: 16px;
+    margin-bottom: 16px;
+    box-shadow: 0 8px 24px var(--accent-glow);
+}
+
+.card-logo svg {
+    width: 32px;
+    height: 32px;
+    color: #fff;
+}
+
+.card-header h1 {
+    font-size: 1.625rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    letter-spacing: -0.3px;
+    margin-bottom: 6px;
+}
+
+.card-header p {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+/* ── Группа поля формы ── */
+.form-group {
+    margin-bottom: 18px;
+}
+
+.form-group label {
+    display: block;
+    font-size: 0.825rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: 7px;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+}
+
+/* ── Поля ввода ── */
+.form-group input[type="text"],
+.form-group input[type="email"],
+.form-group input[type="password"] {
+    width: 100%;
+    background: var(--bg-input);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-input);
+    padding: 12px 14px;
+    font-size: 0.95rem;
+    color: var(--text-primary);
+    outline: none;
+    transition:
+        border-color var(--transition),
+        background var(--transition),
+        box-shadow var(--transition);
+    -webkit-appearance: none;
+}
+
+.form-group input::placeholder {
+    color: var(--text-muted);
+}
+
+/* Состояние фокуса */
+.form-group input:focus {
+    border-color: var(--border-focus);
+    background: var(--bg-input-focus);
+    box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+/* Состояние ошибки */
+.form-group input.error {
+    border-color: var(--error-color);
+    box-shadow: 0 0 0 3px var(--error-bg);
+}
+
+/* Состояние успеха */
+.form-group input.success {
+    border-color: var(--success-color);
+}
+
+/* ── Обёртка поля с иконкой ── */
+.input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.input-wrapper input {
+    width: 100%;
+    background: var(--bg-input);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-input);
+    padding: 12px 44px 12px 14px;
+    font-size: 0.95rem;
+    color: var(--text-primary);
+    outline: none;
+    transition:
+        border-color var(--transition),
+        background var(--transition),
+        box-shadow var(--transition);
+    -webkit-appearance: none;
+}
+
+.input-wrapper input::placeholder {
+    color: var(--text-muted);
+}
+
+.input-wrapper input:focus {
+    border-color: var(--border-focus);
+    background: var(--bg-input-focus);
+    box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.input-wrapper input.error {
+    border-color: var(--error-color);
+    box-shadow: 0 0 0 3px var(--error-bg);
+}
+
+.input-wrapper input.success {
+    border-color: var(--success-color);
+}
+
+/* Кнопка-переключатель видимости пароля */
+.toggle-password {
+    position: absolute;
+    right: 12px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    transition: color var(--transition);
+    flex-shrink: 0;
+}
+
+.toggle-password:hover {
+    color: var(--text-secondary);
+}
+
+.toggle-password svg {
+    width: 18px;
+    height: 18px;
+    pointer-events: none;
+}
+
+/* ── Сообщение об ошибке под полем ── */
+.field-error {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--error-color);
+    margin-top: 5px;
+    min-height: 1em;
+    animation: fadeInDown 0.2s ease;
+}
+
+.field-error:empty {
+    display: none;
+}
+
+/* ── Индикатор совпадения пароля ── */
+.match-indicator {
+    display: block;
+    font-size: 0.8rem;
+    margin-top: 5px;
+    min-height: 1em;
+    font-weight: 500;
+}
+
+.match-indicator.match {
+    color: var(--success-color);
+}
+
+.match-indicator.mismatch {
+    color: var(--error-color);
+}
+
+/* ── Индикатор силы пароля ── */
+.password-strength {
+    margin-top: 8px;
+}
+
+.strength-bar-track {
+    height: 4px;
+    background: var(--bg-input);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 5px;
+}
+
+.strength-bar {
+    height: 100%;
+    width: 0%;
+    border-radius: 4px;
+    transition:
+        width 0.35s ease,
+        background-color 0.35s ease;
+}
+
+.strength-text {
+    font-size: 0.775rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    transition: color 0.35s ease;
+}
+
+/* ── Кнопка-ссылка ── */
+.btn-link {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-link);
+    font-size: 0.9rem;
+    font-weight: 500;
+    padding: 2px 0;
+    text-decoration: none;
+    transition:
+        color var(--transition),
+        opacity var(--transition);
+    font-family: inherit;
+}
+
+.btn-link:hover {
+    color: var(--accent-light);
+}
+
+.btn-link:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+/* ── Основная кнопка ── */
+.btn-primary {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+    background: var(--gradient-btn);
+    border: none;
+    border-radius: var(--radius-btn);
+    padding: 13px 24px;
+    font-size: 0.975rem;
+    font-weight: 600;
+    color: #fff;
+    cursor: pointer;
+    letter-spacing: 0.2px;
+    transition:
+        transform var(--transition),
+        box-shadow var(--transition),
+        background var(--transition),
+        opacity var(--transition);
+    margin-top: 8px;
+    font-family: inherit;
+    -webkit-appearance: none;
+}
+
+.btn-primary:hover:not(:disabled) {
+    background: var(--gradient-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px var(--accent-glow);
+}
+
+.btn-primary:active:not(:disabled) {
+    transform: translateY(0);
+    box-shadow: none;
+}
+
+.btn-primary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+/* Текст внутри кнопки (скрывается при загрузке) */
+.btn-primary .btn-text {
+    transition: opacity var(--transition);
+}
+
+/* ── Спиннер (CSS-анимация) ── */
+.spinner {
+    width: 18px;
+    height: 18px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: #ffffff;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    flex-shrink: 0;
+    display: none; /* скрыт по умолчанию */
+}
+
+.btn-primary.loading .spinner {
+    display: block;
+}
+
+.btn-primary.loading .btn-text {
+    opacity: 0.7;
+}
+
+/* ── Блок с предупреждением / успехом ── */
+.alert-error,
+.alert-success {
+    border-radius: 10px;
+    padding: 12px 16px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    margin-top: 16px;
+    border: 1px solid transparent;
+    animation: fadeInDown 0.25s ease;
+    line-height: 1.5;
+}
+
+.alert-error {
+    background: var(--error-bg);
+    border-color: var(--error-border);
+    color: #f08080;
+}
+
+.alert-success {
+    background: var(--success-bg);
+    border-color: var(--success-border);
+    color: #6fcf97;
+}
+
+/* ── OTP / код: контейнер с 6 ячейками ── */
+.code-inputs {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin: 24px 0;
+}
+
+.code-input {
+    width: 52px;
+    height: 60px;
+    background: var(--bg-input);
+    border: 1.5px solid var(--border-color);
+    border-radius: 12px;
+    text-align: center;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    outline: none;
+    caret-color: var(--accent-light);
+    transition:
+        border-color var(--transition),
+        box-shadow var(--transition),
+        background var(--transition);
+    -webkit-appearance: none;
+    /* убираем стрелки у number-инпута */
+    -moz-appearance: textfield;
+}
+
+.code-input::-webkit-inner-spin-button,
+.code-input::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+}
+
+.code-input:focus {
+    border-color: var(--border-focus);
+    background: var(--bg-input-focus);
+    box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.code-input.filled {
+    border-color: var(--accent);
+    background: var(--bg-input-focus);
+}
+
+.code-input.error {
+    border-color: var(--error-color);
+    box-shadow: 0 0 0 3px var(--error-bg);
+}
+
+/* Тряска блока с кодом при ошибке */
+.code-inputs.shake {
+    animation: shake 0.45s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+/* ── Секция повторной отправки кода ── */
+.resend-section {
+    text-align: center;
+    margin-top: 12px;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+.resend-section #resendCountdown {
+    color: var(--text-muted);
+    font-weight: 600;
+    font-size: 0.85rem;
+}
+
+/* ── Нижняя ссылка карточки ── */
+.card-footer {
+    text-align: center;
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border-color);
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+.card-footer a {
+    color: var(--text-link);
+    text-decoration: none;
+    font-weight: 600;
+    transition: color var(--transition);
+}
+
+.card-footer a:hover {
+    color: var(--accent-light);
+}
+
+/* ── Ссылка «назад» ── */
+.back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--text-muted);
+    text-decoration: none;
+    font-size: 0.85rem;
+    margin-top: 20px;
+    transition: color var(--transition);
+}
+
+.back-link:hover {
+    color: var(--text-link);
+}
+
+/* ── Скрытый элемент ── */
+.hidden {
+    display: none !important;
+}
+
+/* ── Разделитель с текстом ── */
+.divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 20px 0;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+}
+
+.divider::before,
+.divider::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--border-color);
+}
+
+/* ============================================================
+   Анимации
+   ============================================================ */
+
+/* Появление карточки */
+@keyframes fadeInCard {
+    from {
+        opacity: 0;
+        transform: translateY(24px) scale(0.97);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* Появление элементов сверху вниз */
+@keyframes fadeInDown {
+    from {
+        opacity: 0;
+        transform: translateY(-6px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Вращение спиннера */
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Тряска при ошибке */
+@keyframes shake {
+    10%,
+    90% {
+        transform: translateX(-3px);
+    }
+    20%,
+    80% {
+        transform: translateX(5px);
+    }
+    30%,
+    50%,
+    70% {
+        transform: translateX(-6px);
+    }
+    40%,
+    60% {
+        transform: translateX(6px);
+    }
+    100% {
+        transform: translateX(0);
+    }
+}
+
+/* Тряска карточки */
+.auth-card.shake {
+    animation: shake 0.45s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+/* ============================================================
+   Адаптивность
+   ============================================================ */
+@media (max-width: 480px) {
+    .auth-card {
+        padding: 28px 20px;
+        border-radius: 12px;
+        border-left: none;
+        border-right: none;
+        max-width: 100%;
+    }
+
+    .auth-container {
+        padding: 0;
+        align-items: flex-start;
+    }
+
+    .auth-card {
+        min-height: 100vh;
+        border-radius: 0;
+        box-shadow: none;
+    }
+
+    .code-input {
+        width: 44px;
+        height: 52px;
+        font-size: 1.25rem;
+        border-radius: 10px;
+    }
+
+    .code-inputs {
+        gap: 7px;
+    }
+
+    .card-header h1 {
+        font-size: 1.375rem;
+    }
+
+    .card-logo {
+        width: 52px;
+        height: 52px;
+        border-radius: 14px;
+    }
+}
+
+@media (max-width: 360px) {
+    .code-input {
+        width: 38px;
+        height: 46px;
+        font-size: 1.1rem;
+    }
+
+    .code-inputs {
+        gap: 5px;
+    }
+}

@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Messenger</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #0f0f13 0%, #1a1a2e 100%);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+    .loader {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+    }
+    .logo {
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+    .spinner-ring {
+      width: 36px;
+      height: 36px;
+      border: 3px solid rgba(124, 92, 191, 0.25);
+      border-top-color: #7c5cbf;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    .loader-text {
+      color: #5a5a72;
+      font-size: 13px;
+      letter-spacing: 0.5px;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
+    }
+  </style>
+</head>
+<body>
+  <div class="loader">
+    <div class="logo">
+      <svg width="56" height="56" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M10 14a4 4 0 0 1 4-4h20a4 4 0 0 1 4 4v14a4 4 0 0 1-4 4H28l-4 5-4-5H14a4 4 0 0 1-4-4V14z"
+              fill="#7c5cbf"/>
+        <circle cx="18" cy="21" r="2" fill="#fff"/>
+        <circle cx="24" cy="21" r="2" fill="#fff"/>
+        <circle cx="30" cy="21" r="2" fill="#fff"/>
+      </svg>
+    </div>
+    <div class="spinner-ring"></div>
+    <span class="loader-text">Загрузка...</span>
+  </div>
+
+  <script>
+    (function () {
+      const API = "http://localhost:8000";
+      const token = localStorage.getItem("token");
+
+      if (!token) {
+        window.location.replace("register.html");
+        return;
+      }
+
+      // Verify the token is still valid by hitting /api/users/me
+      fetch(API + "/api/users/me", {
+        headers: { "Authorization": "Bearer " + token }
+      })
+        .then(function (res) {
+          if (res.ok) {
+            window.location.replace("chat.html");
+          } else {
+            // Token expired or invalid — clear and go to register
+            localStorage.removeItem("token");
+            localStorage.removeItem("user");
+            window.location.replace("register.html");
+          }
+        })
+        .catch(function () {
+          // Server unreachable — if we have a token try chat anyway,
+          // the chat page itself will handle auth errors
+          window.location.replace("chat.html");
+        });
+    })();
+  </script>
+</body>
+</html>

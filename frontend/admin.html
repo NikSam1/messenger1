@@ -1,0 +1,388 @@
+<!doctype html>
+<html lang="ru">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+        <title>Админ — Messenger</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;0,14..32,800;1,14..32,400&display=swap"
+            rel="stylesheet"
+        />
+        <link rel="stylesheet" href="css/admin.css" />
+    </head>
+    <body>
+        <div class="admin-layout">
+            <!-- ═══ SIDEBAR ═══ -->
+            <aside class="admin-sidebar">
+                <div class="admin-logo">
+                    <svg
+                        width="28"
+                        height="28"
+                        viewBox="0 0 48 48"
+                        fill="none"
+                        aria-hidden="true"
+                    >
+                        <path
+                            d="M10 14a4 4 0 0 1 4-4h20a4 4 0 0 1 4 4v14a4 4 0 0 1-4 4H28l-4 5-4-5H14a4 4 0 0 1-4-4V14z"
+                            fill="#fff"
+                        />
+                        <circle cx="18" cy="21" r="2" fill="#7c5cbf" />
+                        <circle cx="24" cy="21" r="2" fill="#7c5cbf" />
+                        <circle cx="30" cy="21" r="2" fill="#7c5cbf" />
+                    </svg>
+                    <span>Messenger</span>
+                </div>
+
+                <nav class="admin-nav">
+                    <a class="nav-item active" data-section="overview" href="#">
+                        <span class="nav-icon">📊</span> Обзор
+                    </a>
+                    <a class="nav-item" data-section="users" href="#">
+                        <span class="nav-icon">👥</span> Пользователи
+                    </a>
+                </nav>
+
+                <div class="admin-sidebar-footer">
+                    <a href="chat.html" class="nav-item">
+                        <span class="nav-icon">💬</span> К мессенджеру
+                    </a>
+                    <button class="nav-item logout-nav" id="adminLogoutBtn">
+                        <span class="nav-icon">🚪</span> Выйти
+                    </button>
+                </div>
+            </aside>
+            <!-- /SIDEBAR -->
+
+            <!-- ═══ MAIN CONTENT ═══ -->
+            <main class="admin-main">
+                <!-- Top bar -->
+                <div class="admin-topbar">
+                    <h1 class="admin-page-title" id="adminPageTitle">Обзор</h1>
+                    <div class="admin-user-info">
+                        <span id="adminUserName">Загрузка...</span>
+                        <div class="avatar-initials-sm" id="adminAvatarEl">
+                            A
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ── SECTION: Overview ── -->
+                <section class="admin-section" id="section-overview">
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-icon">👤</div>
+                            <div class="stat-value" id="stat-users-total">
+                                —
+                            </div>
+                            <div class="stat-label">Пользователей</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">✅</div>
+                            <div class="stat-value" id="stat-users-verified">
+                                —
+                            </div>
+                            <div class="stat-label">Подтверждены</div>
+                        </div>
+                        <div class="stat-card online">
+                            <div class="stat-icon">🟢</div>
+                            <div class="stat-value" id="stat-users-online">
+                                —
+                            </div>
+                            <div class="stat-label">Онлайн сейчас</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">🚫</div>
+                            <div class="stat-value" id="stat-users-banned">
+                                —
+                            </div>
+                            <div class="stat-label">Заблокированы</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">💬</div>
+                            <div class="stat-value" id="stat-messages-total">
+                                —
+                            </div>
+                            <div class="stat-label">Сообщений</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">📁</div>
+                            <div class="stat-value" id="stat-media-total">
+                                —
+                            </div>
+                            <div class="stat-label">Медиафайлов</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">💾</div>
+                            <div class="stat-value" id="stat-media-size">—</div>
+                            <div class="stat-label">MB занято</div>
+                        </div>
+                    </div>
+
+                    <div class="admin-card" style="margin-top: 24px">
+                        <h3 class="admin-card-title">Быстрые действия</h3>
+                        <div style="display: flex; gap: 10px; flex-wrap: wrap">
+                            <button
+                                class="admin-btn"
+                                onclick="
+                                    document
+                                        .querySelector('[data-section=users]')
+                                        .click()
+                                "
+                            >
+                                Управление пользователями
+                            </button>
+                        </div>
+                    </div>
+                </section>
+                <!-- /Overview -->
+
+                <!-- ── SECTION: Users ── -->
+                <section
+                    class="admin-section"
+                    id="section-users"
+                    style="display: none"
+                >
+                    <div class="admin-card">
+                        <div
+                            style="
+                                display: flex;
+                                align-items: center;
+                                justify-content: space-between;
+                                margin-bottom: 16px;
+                                flex-wrap: wrap;
+                                gap: 12px;
+                            "
+                        >
+                            <h3 class="admin-card-title" style="margin: 0">
+                                Все пользователи
+                            </h3>
+                            <input
+                                type="text"
+                                class="admin-search-input"
+                                id="adminUserSearch"
+                                placeholder="Фильтр по имени, тегу, email..."
+                            />
+                        </div>
+
+                        <div class="table-wrapper">
+                            <table class="admin-table" id="usersTable">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Пользователь</th>
+                                        <th>Тег</th>
+                                        <th>Email</th>
+                                        <th>Статус</th>
+                                        <th>Роль</th>
+                                        <th>Регистрация</th>
+                                        <th>Действия</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="usersTableBody">
+                                    <tr>
+                                        <td
+                                            colspan="8"
+                                            style="
+                                                text-align: center;
+                                                color: #aaa;
+                                                padding: 32px;
+                                            "
+                                        >
+                                            Загрузка...
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Pagination -->
+                        <div
+                            class="table-pagination"
+                            id="usersPagination"
+                        ></div>
+                    </div>
+                </section>
+                <!-- /Users -->
+            </main>
+            <!-- /MAIN -->
+        </div>
+        <!-- /admin-layout -->
+
+        <!-- ═══ CONFIRM DELETE MODAL ═══ -->
+        <div
+            class="modal-overlay"
+            id="confirmDeleteOverlay"
+            style="
+                display: none;
+                align-items: center;
+                justify-content: center;
+                position: fixed;
+                inset: 0;
+                background: rgba(0, 0, 0, 0.5);
+                z-index: 1000;
+            "
+        >
+            <div
+                class="modal"
+                style="
+                    max-width: 380px;
+                    background: #fff;
+                    border-radius: 16px;
+                    padding: 28px;
+                    position: relative;
+                "
+            >
+                <h3
+                    style="
+                        margin: 0 0 12px;
+                        color: #1a1a2e;
+                        font-size: 18px;
+                        font-weight: 700;
+                    "
+                >
+                    Удалить пользователя?
+                </h3>
+                <p
+                    style="
+                        color: #666;
+                        margin: 0 0 20px;
+                        font-size: 14px;
+                        line-height: 1.5;
+                    "
+                    id="confirmDeleteText"
+                >
+                    Это действие нельзя отменить.
+                </p>
+                <div style="display: flex; gap: 10px">
+                    <button
+                        class="admin-btn danger"
+                        id="confirmDeleteBtn"
+                        style="flex: 1"
+                    >
+                        Удалить
+                    </button>
+                    <button
+                        class="admin-btn secondary"
+                        id="cancelDeleteBtn"
+                        style="flex: 1"
+                    >
+                        Отмена
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══ EDIT USER MODAL ═══ -->
+        <div
+            class="modal-overlay"
+            id="editUserOverlay"
+            style="
+                display: none;
+                align-items: center;
+                justify-content: center;
+                position: fixed;
+                inset: 0;
+                background: rgba(0, 0, 0, 0.5);
+                z-index: 1000;
+            "
+        >
+            <div
+                class="modal"
+                style="
+                    max-width: 440px;
+                    background: #fff;
+                    border-radius: 16px;
+                    padding: 28px;
+                    position: relative;
+                    width: 90%;
+                "
+            >
+                <button
+                    class="modal-close-btn"
+                    id="closeEditUserModal"
+                    style="
+                        position: absolute;
+                        top: 16px;
+                        right: 16px;
+                        background: none;
+                        border: none;
+                        cursor: pointer;
+                        font-size: 22px;
+                        color: #aaa;
+                        line-height: 1;
+                    "
+                >
+                    ✕
+                </button>
+                <h3
+                    style="
+                        margin: 0 0 20px;
+                        color: #1a1a2e;
+                        font-size: 18px;
+                        font-weight: 700;
+                    "
+                >
+                    Редактировать пользователя
+                </h3>
+
+                <div style="display: flex; flex-direction: column; gap: 14px">
+                    <div class="modal-form-group">
+                        <label class="modal-form-label">Имя пользователя</label>
+                        <input
+                            type="text"
+                            id="editUserName"
+                            class="modal-form-input"
+                            placeholder="Имя"
+                        />
+                    </div>
+                    <div class="modal-form-group">
+                        <label class="modal-form-label">Тег</label>
+                        <input
+                            type="text"
+                            id="editUserTag"
+                            class="modal-form-input"
+                            placeholder="тег"
+                        />
+                    </div>
+                    <div class="modal-form-group">
+                        <label class="modal-form-label">Email</label>
+                        <input
+                            type="email"
+                            id="editUserEmail"
+                            class="modal-form-input"
+                            placeholder="email@example.com"
+                        />
+                    </div>
+                    <div class="modal-form-group">
+                        <label class="modal-form-label">Роль</label>
+                        <select id="editUserRole" class="modal-form-input">
+                            <option value="user">Пользователь</option>
+                            <option value="admin">Администратор</option>
+                        </select>
+                    </div>
+                    <div
+                        id="editUserMessage"
+                        style="
+                            display: none;
+                            font-size: 13px;
+                            padding: 8px 12px;
+                            border-radius: 8px;
+                        "
+                    ></div>
+                    <button
+                        class="admin-btn"
+                        id="saveEditUserBtn"
+                        style="width: 100%; padding: 11px; font-size: 14px"
+                    >
+                        Сохранить
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <script src="js/config.js"></script>
+        <script src="js/admin.js"></script>
+    </body>
+</html>
