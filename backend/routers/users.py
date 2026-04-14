@@ -20,7 +20,8 @@ import aiosqlite
 from database import DB_PATH
 from dependencies import get_current_user
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+from routers.ws import manager
 
 # ---------------------------------------------------------------------------
 # File-system paths
@@ -347,51 +348,14 @@ async def search_users(
 
 
 # ---------------------------------------------------------------------------
-# GET /{user_id}
+# GET /online  — список пользователей онлайн
 # ---------------------------------------------------------------------------
 
 
-@router.get("/{user_id}", summary="Получить публичный профиль пользователя")
-async def get_user(
-    user_id: int,
-    current_user: dict = Depends(get_current_user),
-) -> dict:
-    """
-    Return a user's public profile by their numeric ID.
-
-    Returns ``{id, username, tag, bio, avatar, last_seen, created_at}``.
-
-    Raises 404 if the user does not exist, is not verified, or is banned.
-    """
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        async with db.execute(
-            """
-            SELECT id, username, tag, bio, avatar, last_seen, created_at
-              FROM users
-             WHERE id = ?
-               AND is_verified = 1
-               AND is_banned   = 0
-            """,
-            (user_id,),
-        ) as cur:
-            row = await cur.fetchone()
-
-    if not row:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Пользователь не найден",
-        )
-
-    return {
-        "id": row["id"],
-        "username": row["username"],
-        "tag": row["tag"],
-        "bio": row["bio"] or "",
-        "avatar": row["avatar"] or "",
-        "last_seen": row["last_seen"],
-        "created_at": row["created_at"],
-    }
+@router.get("/online", summary="Список IDs пользователей онлайн")
+async def list_online_users() -> dict:
+    """Return the set of currently online user IDs (via WS connection)."""
+    return {"online_user_ids": manager.online_user_ids()}
 
 
 # ---------------------------------------------------------------------------
@@ -498,3 +462,51 @@ async def delete_share_link(
         await db.commit()
 
     return {"message": "Ссылка удалена"}
+
+
+# ---------------------------------------------------------------------------
+# GET /{user_id}  — fetch another user's public profile
+# ---------------------------------------------------------------------------
+
+
+@router.get("/{user_id}", summary="Получить публичный профиль пользователя")
+async def get_user(
+    user_id: int,
+    current_user: dict = Depends(get_current_user),
+) -> dict:
+    """
+    Return a user's public profile by their numeric ID.
+
+    Returns ``{id, username, tag, bio, avatar, last_seen, created_at}``.
+
+    Raises 404 if the user does not exist, is not verified, or is banned.
+    """
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            """
+            SELECT id, username, tag, bio, avatar, last_seen, created_at
+              FROM users
+             WHERE id = ?
+               AND is_verified = 1
+               AND is_banned   = 0
+            """,
+            (user_id,),
+        ) as cur:
+            row = await cur.fetchone()
+
+    if not row:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Пользователь не найден",
+        )
+
+    return {
+        "id": row["id"],
+        "username": row["username"],
+        "tag": row["tag"],
+        "bio": row["bio"] or "",
+        "avatar": row["avatar"] or "",
+        "last_seen": row["last_seen"],
+        "created_at": row["created_at"],
+    }

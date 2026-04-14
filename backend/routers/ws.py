@@ -10,7 +10,7 @@ from typing import Dict
 import aiosqlite
 import jwt
 from database import DB_PATH
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 from services.jwt_service import decode_token
 
 router = APIRouter()
@@ -50,14 +50,11 @@ class ConnectionManager:
 manager = ConnectionManager()
 
 
-@router.get("/online-users", summary="Список IDs пользователей онлайн")
-async def list_online_users() -> dict:
-    """Return the set of currently online user IDs (via WS connection)."""
-    return {"online_user_ids": manager.online_user_ids()}
-
-
 @router.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket, token: str = ""):
+async def websocket_endpoint(
+    websocket: WebSocket,
+    token: str = Query(...),
+) -> None:
     """
     WebSocket endpoint. Client connects with ?token=<jwt>
 

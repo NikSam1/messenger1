@@ -1983,7 +1983,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // 3. Load online users (for status indicators)
   try {
-    const onlineRes = await apiFetch("/api/ws/online-users");
+    const onlineRes = await apiFetch("/api/users/online");
     if (onlineRes.ok) {
       const data = await onlineRes.json();
       (data.online_user_ids || []).forEach((id) => onlineUsers.add(id));
