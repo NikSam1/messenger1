@@ -25,7 +25,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from routers import admin as admin_router
-from routers import auth, media, messages, users, ws
+from routers import auth, groups, media, messages, users, ws
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
@@ -180,6 +180,7 @@ app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 # The remaining routers declare their own prefix internally
 app.include_router(users.router, tags=["users"])
 app.include_router(messages.router, tags=["messages"])
+app.include_router(groups.router, tags=["groups"])
 app.include_router(media.router, tags=["media"])
 app.include_router(admin_router.router, tags=["admin"])
 

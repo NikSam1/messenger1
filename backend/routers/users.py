@@ -392,3 +392,109 @@ async def get_user(
         "last_seen": row["last_seen"],
         "created_at": row["created_at"],
     }
+
+
+# ---------------------------------------------------------------------------
+# GET /link/{token}  — resolve a share-link token (public)
+# ---------------------------------------------------------------------------
+
+
+@router.get("/link/{token}", summary="Разбор персональной ссылки")
+async def resolve_share_link(token: str) -> dict:
+    """
+    Resolve a share-link token to a user profile.
+    Public endpoint — no authentication required.
+    Used by the frontend for deep-linking: ?invite=<token>
+    """
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            """
+            SELECT id, username, tag, bio, avatar, last_seen, is_banned, is_verified
+              FROM users
+             WHERE share_token = ?
+            """,
+            (token,),
+        ) as cur:
+            row = await cur.fetchone()
+
+    if not row or row["is_banned"] or not row["is_verified"]:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Ссылка недействительна или пользователь не найден",
+        )
+
+    return {
+        "id": row["id"],
+        "username": row["username"],
+        "tag": row["tag"],
+        "bio": row["bio"] or "",
+        "avatar": row["avatar"] or "",
+    }
+
+
+# ---------------------------------------------------------------------------
+# GET  /me/share-link       — получить текущую ссылку
+# POST /me/share-link       — создать / обновить ссылку
+# DELETE /me/share-link     — удалить ссылку
+# ---------------------------------------------------------------------------
+
+
+class ShareLinkResponse(BaseModel):
+    token: str
+    url: str
+
+
+@router.get("/me/share-link", summary="Моя персональная ссылка")
+async def get_my_share_link(
+    current_user: dict = Depends(get_current_user),
+) -> dict:
+    """Return the current share link for the authenticated user."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT share_token FROM users WHERE id = ?",
+            (current_user["id"],),
+        ) as cur:
+            row = await cur.fetchone()
+
+    token = row["share_token"] if row else None
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Персональная ссылка не создана",
+        )
+
+    return {"token": token, "url": f"?invite={token}"}
+
+
+@router.post("/me/share-link", summary="Создать / обновить персональную ссылку")
+async def create_share_link(
+    current_user: dict = Depends(get_current_user),
+) -> ShareLinkResponse:
+    """Generate (or regenerate) a unique share link for the current user."""
+    new_token = uuid4().hex[:16]
+
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "UPDATE users SET share_token = ? WHERE id = ?",
+            (new_token, current_user["id"]),
+        )
+        await db.commit()
+
+    return ShareLinkResponse(token=new_token, url=f"?invite={new_token}")
+
+
+@router.delete("/me/share-link", summary="Удалить персональную ссылку")
+async def delete_share_link(
+    current_user: dict = Depends(get_current_user),
+) -> dict:
+    """Remove the share link for the current user."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "UPDATE users SET share_token = NULL WHERE id = ?",
+            (current_user["id"],),
+        )
+        await db.commit()
+
+    return {"message": "Ссылка удалена"}

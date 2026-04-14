@@ -144,6 +144,59 @@ async def init_db() -> None:
 
         await db.commit()
 
+        # ── group_chats / group_members / group_messages ──────────────────
+        await db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS group_chats (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                title       TEXT    NOT NULL,
+                avatar      TEXT    NOT NULL DEFAULT '',
+                owner_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                created_at  TEXT    NOT NULL DEFAULT (datetime('now'))
+            )
+            """
+        )
+        await db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS group_members (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                group_id    INTEGER NOT NULL REFERENCES group_chats(id) ON DELETE CASCADE,
+                user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                role        TEXT    NOT NULL DEFAULT 'member',
+                joined_at   TEXT    NOT NULL DEFAULT (datetime('now')),
+                UNIQUE(group_id, user_id)
+            )
+            """
+        )
+        await db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS group_messages (
+                id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                group_id     INTEGER NOT NULL REFERENCES group_chats(id) ON DELETE CASCADE,
+                from_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                content      TEXT,
+                media_id     INTEGER REFERENCES media(id) ON DELETE SET NULL,
+                is_deleted   INTEGER NOT NULL DEFAULT 0,
+                edited_at    TEXT,
+                created_at   TEXT NOT NULL DEFAULT (datetime('now'))
+            )
+            """
+        )
+        await db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS group_invite_links (
+                id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                group_id   INTEGER NOT NULL REFERENCES group_chats(id) ON DELETE CASCADE,
+                code       TEXT    NOT NULL UNIQUE,
+                created_by INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                expires_at TEXT,
+                is_active  INTEGER NOT NULL DEFAULT 1,
+                created_at TEXT    NOT NULL DEFAULT (datetime('now'))
+            )
+            """
+        )
+        await db.commit()
+
         # ── ALTER TABLE migrations ─────────────────────────────────────────
         # SQLite does not support  ALTER TABLE … ADD COLUMN IF NOT EXISTS.
         # We attempt each statement individually and silently ignore the
@@ -156,8 +209,8 @@ async def init_db() -> None:
             "ALTER TABLE users ADD COLUMN is_admin  INTEGER NOT NULL DEFAULT 0",
             "ALTER TABLE users ADD COLUMN is_banned INTEGER NOT NULL DEFAULT 0",
             "ALTER TABLE users ADD COLUMN last_seen TEXT",
+            "ALTER TABLE users ADD COLUMN share_token TEXT",
         ]
-
         for stmt in _column_migrations:
             try:
                 await db.execute(stmt)
@@ -199,6 +252,18 @@ async def init_db() -> None:
         )
         await db.execute(
             "CREATE INDEX IF NOT EXISTS idx_messages_created ON messages(created_at)"
+        )
+        await db.execute(
+            "CREATE INDEX IF NOT EXISTS idx_group_members_group ON group_members(group_id)"
+        )
+        await db.execute(
+            "CREATE INDEX IF NOT EXISTS idx_group_members_user ON group_members(user_id)"
+        )
+        await db.execute(
+            "CREATE INDEX IF NOT EXISTS idx_group_messages_group ON group_messages(group_id)"
+        )
+        await db.execute(
+            "CREATE INDEX IF NOT EXISTS idx_group_messages_created ON group_messages(created_at)"
         )
 
         await db.commit()

@@ -15,6 +15,8 @@ from services.jwt_service import decode_token
 
 router = APIRouter()
 
+_DISCONNECT_GRACE_PERIOD: float = 2.0
+
 
 class ConnectionManager:
     """Manages active WebSocket connections keyed by user_id."""
@@ -46,6 +48,12 @@ class ConnectionManager:
 
 # Singleton used across the app
 manager = ConnectionManager()
+
+
+@router.get("/online-users", summary="Список IDs пользователей онлайн")
+async def list_online_users() -> dict:
+    """Return the set of currently online user IDs (via WS connection)."""
+    return {"online_user_ids": manager.online_user_ids()}
 
 
 @router.websocket("/ws")
@@ -175,8 +183,9 @@ async def websocket_endpoint(websocket: WebSocket, token: str = ""):
         pass
     finally:
         manager.disconnect(user_id)
-        # Notify remaining online users that this user went offline
-        for uid in manager.online_user_ids():
-            await manager.send_to_user(
-                uid, {"type": "user_offline", "user_id": user_id}
-            )
+        await asyncio.sleep(_DISCONNECT_GRACE_PERIOD)
+        if not manager.is_online(user_id):
+            for uid in manager.online_user_ids():
+                await manager.send_to_user(
+                    uid, {"type": "user_offline", "user_id": user_id}
+                )

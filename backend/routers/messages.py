@@ -481,3 +481,41 @@ async def delete_message(
         )
 
     return {"message": "Удалено", "for_all": for_all}
+
+
+@router.delete("/dialogs/{user_id}", summary="Удалить диалог целиком")
+async def delete_conversation(
+    user_id: int,
+    current_user: dict = Depends(get_current_user),
+) -> dict:
+    """
+    Hide the entire direct conversation for the current user.
+    Messages are not removed globally; they are marked deleted for requester.
+    """
+    me = current_user["id"]
+    if me == user_id:
+        raise HTTPException(status_code=400, detail="Нельзя удалить чат с самим собой")
+
+    async with aiosqlite.connect(DB_PATH) as db:
+        # Mark messages where requester is sender
+        cur1 = await db.execute(
+            """
+            UPDATE messages
+            SET deleted_for_sender = 1
+            WHERE from_user_id = ? AND to_user_id = ?
+            """,
+            (me, user_id),
+        )
+        # Mark messages where requester is receiver
+        cur2 = await db.execute(
+            """
+            UPDATE messages
+            SET deleted_for_receiver = 1
+            WHERE from_user_id = ? AND to_user_id = ?
+            """,
+            (user_id, me),
+        )
+        await db.commit()
+        updated = (cur1.rowcount or 0) + (cur2.rowcount or 0)
+
+    return {"message": "Диалог удалён для вас", "affected_messages": updated}

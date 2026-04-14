@@ -338,7 +338,8 @@ server {
     }
 
     # Загруженные файлы (аватары, медиа)
-    location /uploads/ {
+    # ^~ обязателен, чтобы regex-локация статики (*.png/*.jpg/...) не перехватывала /uploads/*
+    location ^~ /uploads/ {
         proxy_pass       http://127.0.0.1:8000;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
