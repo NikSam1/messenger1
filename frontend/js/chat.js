@@ -1351,12 +1351,17 @@ async function handleFileSelect(e) {
       pendingMediaId = data.id;
     } else {
       const data = await res.json().catch(() => ({}));
-      alert("Ошибка загрузки файла: " + extractError(data));
+      console.error("handleFileSelect upload failed:", res.status, data, {
+        name: file.name,
+        mime: file.type,
+        size: file.size,
+      });
+      showToast("Ошибка загрузки: " + extractError(data), "error");
       clearMediaPreview();
     }
   } catch (err) {
     console.error("uploadMedia error:", err);
-    alert("Не удалось загрузить файл");
+    showToast("Не удалось загрузить файл", "error");
     clearMediaPreview();
   }
 }
@@ -1389,12 +1394,17 @@ async function uploadBlobAsMedia(blob, filename) {
       pendingMediaId = data.id;
     } else {
       const data = await res.json().catch(() => ({}));
-      alert("Ошибка загрузки файла: " + extractError(data));
+      console.error("uploadBlobAsMedia failed:", res.status, data, {
+        filename,
+        mime: blob.type,
+        size: blob.size,
+      });
+      showToast("Ошибка загрузки: " + extractError(data), "error");
       clearMediaPreview();
     }
   } catch (err) {
     console.error("uploadBlobAsMedia error:", err);
-    alert("Не удалось загрузить файл");
+    showToast("Не удалось загрузить файл", "error");
     clearMediaPreview();
   }
 }
@@ -1433,6 +1443,7 @@ async function toggleVoiceRecording() {
     const preferredTypes = [
       "audio/webm;codecs=opus",
       "audio/ogg;codecs=opus",
+      "audio/mp4",
       "audio/webm",
       "audio/ogg",
     ];
@@ -1456,7 +1467,13 @@ async function toggleVoiceRecording() {
       voiceChunks = [];
       if (!blob || blob.size < 300) return;
 
-      const ext = blob.type.includes("ogg") ? "ogg" : blob.type.includes("mpeg") ? "mp3" : "webm";
+      const ext = blob.type.includes("ogg")
+        ? "ogg"
+        : blob.type.includes("mpeg")
+          ? "mp3"
+          : blob.type.includes("mp4")
+            ? "m4a"
+            : "webm";
       await uploadBlobAsMedia(blob, `voice-message.${ext}`);
     };
 
@@ -1797,17 +1814,16 @@ async function openGroupMembersModal() {
     listEl.innerHTML = "";
     members.forEach((m) => {
       const row = document.createElement("div");
-      row.style.cssText =
-        "display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid rgba(0,0,0,0.06);border-radius:12px;background:#fff;";
+      row.className = "group-member-row";
 
       const user = { username: m.username, tag: m.tag, avatar: m.avatar };
       row.innerHTML = `
-        ${avatarHTML(user, 36)}
-        <div style="flex:1;overflow:hidden">
-          <div style="font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(m.username || "")}</div>
-          <div style="font-size:12px;color:#888">@${escapeHtml(m.tag || "")}</div>
+        <div class="group-member-avatar">${avatarHTML(user, 36)}</div>
+        <div class="group-member-info">
+          <div class="group-member-name">${escapeHtml(m.username || "")}</div>
+          <div class="group-member-tag">@${escapeHtml(m.tag || "")}</div>
         </div>
-        <div style="font-size:12px;color:${m.role === "owner" ? "#7c5cbf" : "#aaa"};font-weight:600">${escapeHtml(m.role || "")}</div>
+        <div class="group-member-role ${m.role === "owner" ? "owner" : ""}">${escapeHtml(m.role || "")}</div>
       `;
       listEl.appendChild(row);
     });
@@ -2333,9 +2349,19 @@ function attachEventListeners() {
 
 document.addEventListener("DOMContentLoaded", async () => {
   initTheme();
+  const params = new URLSearchParams(window.location.search);
+  const inviteToken = params.get("invite");
+  const groupInviteCode = params.get("group_invite");
+  const pathMatch = window.location.pathname.match(/\/invite\/([^/]+)$/);
+  const groupInviteFromPath = pathMatch ? decodeURIComponent(pathMatch[1]) : null;
+
   const token = localStorage.getItem("token");
   if (!token) {
-    window.location.href = "login.html";
+    // Preserve deep-link invite across login redirect
+    const pending = groupInviteFromPath || groupInviteCode;
+    if (pending) localStorage.setItem("pending_group_invite", pending);
+    if (inviteToken) localStorage.setItem("pending_user_invite", inviteToken);
+    window.location.href = "login.html?next=chat.html";
     return;
   }
 
@@ -2382,19 +2408,20 @@ document.addEventListener("DOMContentLoaded", async () => {
     wsSend({ type: "ping" });
   }, 25000);
 
-  // 9. Handle deep links on load
-  const params = new URLSearchParams(window.location.search);
-  const inviteToken = params.get("invite");
-  const groupInviteCode = params.get("group_invite");
-  const pathMatch = window.location.pathname.match(/\/invite\/([^/]+)$/);
-  const groupInviteFromPath = pathMatch ? decodeURIComponent(pathMatch[1]) : null;
+  // 9. Handle deep links on load (and pending deep links after login)
+  const pendingGroup = localStorage.getItem("pending_group_invite");
+  const pendingUser = localStorage.getItem("pending_user_invite");
 
-  if (groupInviteFromPath || groupInviteCode) {
+  if (groupInviteFromPath || groupInviteCode || pendingGroup) {
+    const code = groupInviteFromPath || groupInviteCode || pendingGroup;
+    localStorage.removeItem("pending_group_invite");
     window.history.replaceState({}, "", window.location.pathname);
-    await joinGroupByInviteCode(groupInviteFromPath || groupInviteCode);
-  } else if (inviteToken) {
+    await joinGroupByInviteCode(code);
+  } else if (inviteToken || pendingUser) {
+    const t = inviteToken || pendingUser;
+    localStorage.removeItem("pending_user_invite");
     window.history.replaceState({}, "", window.location.pathname);
-    await openChatByInviteToken(inviteToken);
+    await openChatByInviteToken(t);
   }
 });
 
@@ -2421,6 +2448,13 @@ async function joinGroupByInviteCode(code) {
       const data = await res.json();
       showToast("Вы присоединились к группе: " + data.title, "success");
       await loadConversations();
+      // Try to open the joined group automatically
+      const conv = conversations.find(
+        (c) => c.type === "group" && c.group && Number(c.group.id) === Number(data.group_id),
+      );
+      if (conv && conv.group) {
+        openGroup(conv.group);
+      }
     } else {
       const data = await res.json().catch(() => ({}));
       showToast(extractError(data), "error");

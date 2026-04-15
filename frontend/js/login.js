@@ -6,6 +6,16 @@ if (localStorage.getItem("token")) {
   window.location.href = "chat.html";
 }
 
+function getNextUrl() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const next = params.get("next");
+    // allow only local html pages
+    if (next && /^[a-z0-9_-]+\.html(\?.*)?$/i.test(next)) return next;
+  } catch {}
+  return "chat.html";
+}
+
 // DOM refs
 const form = document.getElementById("loginForm");
 const emailInput = document.getElementById("loginEmail");
@@ -66,7 +76,7 @@ form.addEventListener("submit", async (e) => {
     if (res.ok) {
       localStorage.setItem("token", data.access_token);
       localStorage.setItem("user", JSON.stringify(data.user));
-      window.location.href = "chat.html";
+      window.location.href = getNextUrl();
     } else {
       const msg =
         typeof data.detail === "string"

@@ -39,7 +39,10 @@ body {
    Dark theme (toggle via body.dark)
    ============================================================ */
 body.dark {
-    background: #0f0f13;
+    background: radial-gradient(1200px 800px at 20% 10%, rgba(155, 125, 224, 0.25), transparent 60%),
+        radial-gradient(900px 700px at 85% 15%, rgba(124, 92, 191, 0.22), transparent 55%),
+        radial-gradient(1100px 900px at 60% 95%, rgba(94, 63, 163, 0.26), transparent 55%),
+        linear-gradient(160deg, #0b0714 0%, #120a22 35%, #0d0b18 100%);
     color: #f2f2f7;
 }
 
@@ -47,7 +50,7 @@ body.dark .sidebar,
 body.dark .chat-header,
 body.dark .message-input-area,
 body.dark .modal {
-    background: #151522;
+    background: rgba(21, 14, 34, 0.92);
     color: #f2f2f7;
 }
 
@@ -60,7 +63,7 @@ body.dark .chat-area {
 }
 
 body.dark .messages-area {
-    background-color: #101020;
+    background-color: rgba(16, 10, 32, 0.92);
     background-image:
         radial-gradient(circle, rgba(124, 92, 191, 0.22) 1.5px, transparent 1.5px),
         radial-gradient(ellipse at 15% 85%, rgba(155, 125, 224, 0.12) 0%, transparent 55%),
@@ -107,6 +110,76 @@ body.dark .bubble.other {
     background: rgba(255, 255, 255, 0.07);
     color: #f2f2f7;
     box-shadow: none;
+}
+
+body.dark .modal-overlay {
+    background: rgba(0, 0, 0, 0.65);
+}
+
+/* ============================================================
+   Group members list
+   ============================================================ */
+
+.group-member-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    border-radius: 12px;
+    background: #fff;
+}
+
+.group-member-avatar {
+    flex-shrink: 0;
+}
+
+.group-member-info {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.group-member-name {
+    font-weight: 700;
+    font-size: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.group-member-tag {
+    font-size: 12px;
+    color: #888;
+}
+
+.group-member-role {
+    font-size: 12px;
+    color: #aaa;
+    font-weight: 600;
+    flex-shrink: 0;
+    text-transform: lowercase;
+}
+
+.group-member-role.owner {
+    color: #7c5cbf;
+}
+
+body.dark .group-member-row {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.10);
+}
+
+body.dark .group-member-tag {
+    color: rgba(255, 255, 255, 0.55);
+}
+
+body.dark .group-member-role {
+    color: rgba(255, 255, 255, 0.45);
+}
+
+body.dark .group-member-role.owner {
+    color: #b79cff;
 }
 
 body.dark .bubble.other .msg-time {
