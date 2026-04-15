@@ -34,6 +34,10 @@ ALLOWED_MIME_TYPES: set[str] = {
     # Videos
     "video/mp4",
     "video/webm",
+    # Audio (voice messages)
+    "audio/webm",
+    "audio/ogg",
+    "audio/mpeg",
     # Documents
     "application/pdf",
     "text/plain",
@@ -50,6 +54,9 @@ _MIME_TO_EXT: dict[str, str] = {
     "image/webp": ".webp",
     "video/mp4": ".mp4",
     "video/webm": ".webm",
+    "audio/webm": ".webm",
+    "audio/ogg": ".ogg",
+    "audio/mpeg": ".mp3",
     "application/pdf": ".pdf",
     "text/plain": ".txt",
     "application/zip": ".zip",
@@ -83,6 +90,8 @@ def _get_extension(filename: str | None, mime_type: str) -> str:
         ".webp",
         ".mp4",
         ".webm",
+        ".ogg",
+        ".mp3",
         ".pdf",
         ".txt",
         ".zip",

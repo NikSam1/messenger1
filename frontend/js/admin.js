@@ -81,7 +81,11 @@ async function loadStats() {
     setText("stat-media-total", data.media_total ?? data.total_media ?? "—");
 
     // Media size — accept bytes and convert to MB, or pre-formatted value
-    const rawSize = data.media_size ?? data.total_media_size ?? null;
+    const rawSize =
+      data.media_size_mb ??
+      data.media_size ??
+      data.total_media_size ??
+      null;
     if (rawSize !== null && rawSize !== undefined) {
       const mb =
         typeof rawSize === "number" && rawSize > 1024

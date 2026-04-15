@@ -423,7 +423,8 @@ async def get_group_invite(
     return {
         "id": link["id"],
         "code": link["code"],
-        "url": f"invite/{link['code']}",
+        # Frontend is multi-page static HTML; use chat.html with query param so it works without SPA routing.
+        "url": f"chat.html?group_invite={link['code']}",
         "expires_at": link["expires_at"],
     }
 
@@ -479,7 +480,8 @@ async def create_group_invite(
     return {
         "id": link_id,
         "code": code,
-        "url": f"invite/{code}",
+        # Frontend is multi-page static HTML; use chat.html with query param so it works without SPA routing.
+        "url": f"chat.html?group_invite={code}",
         "expires_at": expires_at,
     }
 

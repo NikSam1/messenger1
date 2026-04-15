@@ -49,6 +49,26 @@ function authHeaders() {
   };
 }
 
+// ── Theme ─────────────────────────────────────────────────────────────────────
+
+function applyTheme(theme) {
+  const isDark = theme === "dark";
+  document.body.classList.toggle("dark", isDark);
+  const label = document.getElementById("themeStateLabel");
+  if (label) label.textContent = isDark ? "вкл" : "выкл";
+}
+
+function initTheme() {
+  const saved = localStorage.getItem("theme") || "light";
+  applyTheme(saved);
+}
+
+function toggleTheme() {
+  const next = document.body.classList.contains("dark") ? "light" : "dark";
+  localStorage.setItem("theme", next);
+  applyTheme(next);
+}
+
 async function apiFetch(path, options = {}) {
   try {
     const token = localStorage.getItem("token");
@@ -619,10 +639,12 @@ async function openChat(user) {
   const leaveBtn = document.getElementById("leaveGroupBtn");
   const deleteBtn = document.getElementById("deleteChatBtn");
   const viewProfileBtn = document.getElementById("viewProfileBtn");
+  const membersBtn = document.getElementById("groupMembersBtn");
   if (inviteBtn) inviteBtn.style.display = "none";
   if (leaveBtn) leaveBtn.style.display = "none";
   if (deleteBtn) deleteBtn.style.display = "";
   if (viewProfileBtn) viewProfileBtn.style.display = "";
+  if (membersBtn) membersBtn.style.display = "none";
 
   // Clear unread badge in sidebar
   const conv = conversations.find((c) => c.type === "dm" && c.user && c.user.id === user.id);
@@ -678,10 +700,12 @@ async function openGroup(group) {
   const leaveBtn = document.getElementById("leaveGroupBtn");
   const deleteBtn = document.getElementById("deleteChatBtn");
   const viewProfileBtn = document.getElementById("viewProfileBtn");
+  const membersBtn = document.getElementById("groupMembersBtn");
   if (inviteBtn) inviteBtn.style.display = "";
   if (leaveBtn) leaveBtn.style.display = "";
-  if (deleteBtn) deleteBtn.style.display = "none";
+  if (deleteBtn) deleteBtn.style.display = group.owner_id === currentUser.id ? "" : "none";
   if (viewProfileBtn) viewProfileBtn.style.display = "none";
+  if (membersBtn) membersBtn.style.display = "";
 
   await loadGroupMessages(group.id);
   if (msgInput) msgInput.focus();
@@ -921,9 +945,7 @@ function buildMediaEl(media) {
     img.alt = media.name || "Изображение";
     img.style.cssText =
       "max-width:280px;max-height:280px;border-radius:8px;cursor:pointer;display:block;margin-top:4px;";
-    img.addEventListener("click", () =>
-      window.open(`${API}${media.url}`, "_blank"),
-    );
+    img.addEventListener("click", () => openLightbox(`${API}${media.url}`, img.alt));
     wrapper.appendChild(img);
   } else {
     const card = document.createElement("div");
@@ -944,6 +966,24 @@ function buildMediaEl(media) {
   }
 
   return wrapper;
+}
+
+// ── Lightbox (images over chat) ───────────────────────────────────────────────
+
+function openLightbox(src, alt = "") {
+  const overlay = document.getElementById("lightboxOverlay");
+  const img = document.getElementById("lightboxImg");
+  if (!overlay || !img) return;
+  img.src = src;
+  img.alt = alt;
+  overlay.classList.add("open");
+}
+
+function closeLightbox() {
+  const overlay = document.getElementById("lightboxOverlay");
+  const img = document.getElementById("lightboxImg");
+  if (img) img.src = "";
+  if (overlay) overlay.classList.remove("open");
 }
 
 function appendMessage(msg) {
@@ -1284,11 +1324,13 @@ async function handleFileSelect(e) {
     if (file.type.startsWith("image/")) {
       const reader = new FileReader();
       reader.onload = (ev) => {
-        previewThumb.innerHTML = `<img src="${ev.target.result}" style="height:48px;max-width:80px;border-radius:6px;object-fit:cover;" alt="preview"/>`;
+        previewThumb.src = ev.target.result;
+        previewThumb.style.display = "block";
       };
       reader.readAsDataURL(file);
     } else {
-      previewThumb.innerHTML = `<span style="font-size:30px;">📄</span>`;
+      previewThumb.src = "";
+      previewThumb.style.display = "none";
     }
   }
 
@@ -1319,6 +1361,117 @@ async function handleFileSelect(e) {
   }
 }
 
+async function uploadBlobAsMedia(blob, filename) {
+  const previewBar = document.getElementById("mediaPreviewBar");
+  const previewThumb = document.getElementById("mediaPreviewThumb");
+  const previewName = document.getElementById("mediaPreviewName");
+  if (previewName) previewName.textContent = filename;
+  if (previewBar) previewBar.style.display = "flex";
+  if (previewThumb) {
+    previewThumb.src = "";
+    previewThumb.style.display = "none";
+  }
+
+  const file = new File([blob], filename, { type: blob.type || "application/octet-stream" });
+  const formData = new FormData();
+  formData.append("file", file);
+
+  try {
+    const token = localStorage.getItem("token");
+    const res = await fetch(`${API}/api/media/upload`, {
+      method: "POST",
+      headers: { Authorization: "Bearer " + token },
+      body: formData,
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      pendingMediaId = data.id;
+    } else {
+      const data = await res.json().catch(() => ({}));
+      alert("Ошибка загрузки файла: " + extractError(data));
+      clearMediaPreview();
+    }
+  } catch (err) {
+    console.error("uploadBlobAsMedia error:", err);
+    alert("Не удалось загрузить файл");
+    clearMediaPreview();
+  }
+}
+
+// ── Voice messages ────────────────────────────────────────────────────────────
+
+let voiceRecorder = null;
+let voiceStream = null;
+let voiceChunks = [];
+let voiceRecording = false;
+
+function setRecordBtnState(isRecording) {
+  const btn = document.getElementById("recordBtn");
+  if (!btn) return;
+  btn.style.background = isRecording ? "rgba(224,85,85,0.15)" : "";
+  btn.style.border = isRecording ? "1px solid rgba(224,85,85,0.35)" : "";
+}
+
+async function toggleVoiceRecording() {
+  if (voiceRecording) {
+    try {
+      voiceRecorder?.stop();
+    } catch {}
+    return;
+  }
+
+  if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
+    showToast("Запись голоса не поддерживается в этом браузере", "error");
+    return;
+  }
+
+  try {
+    voiceStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    voiceChunks = [];
+
+    const preferredTypes = [
+      "audio/webm;codecs=opus",
+      "audio/ogg;codecs=opus",
+      "audio/webm",
+      "audio/ogg",
+    ];
+    const mimeType = preferredTypes.find((t) => MediaRecorder.isTypeSupported(t)) || "";
+
+    voiceRecorder = new MediaRecorder(voiceStream, mimeType ? { mimeType } : undefined);
+
+    voiceRecorder.ondataavailable = (e) => {
+      if (e.data && e.data.size > 0) voiceChunks.push(e.data);
+    };
+
+    voiceRecorder.onstop = async () => {
+      voiceRecording = false;
+      setRecordBtnState(false);
+      try {
+        voiceStream?.getTracks()?.forEach((t) => t.stop());
+      } catch {}
+      voiceStream = null;
+
+      const blob = new Blob(voiceChunks, { type: voiceRecorder?.mimeType || "audio/webm" });
+      voiceChunks = [];
+      if (!blob || blob.size < 300) return;
+
+      const ext = blob.type.includes("ogg") ? "ogg" : blob.type.includes("mpeg") ? "mp3" : "webm";
+      await uploadBlobAsMedia(blob, `voice-message.${ext}`);
+    };
+
+    voiceRecorder.start();
+    voiceRecording = true;
+    setRecordBtnState(true);
+    showToast("Запись… нажмите ещё раз чтобы остановить", "info");
+  } catch (err) {
+    console.error("toggleVoiceRecording error:", err);
+    showToast("Не удалось получить доступ к микрофону", "error");
+    voiceRecording = false;
+    setRecordBtnState(false);
+  }
+}
+
 function clearMediaPreview() {
   pendingMediaId = null;
   const previewBar = document.getElementById("mediaPreviewBar");
@@ -1326,7 +1479,10 @@ function clearMediaPreview() {
   const previewName = document.getElementById("mediaPreviewName");
   const fileInput = document.getElementById("fileInput");
   if (previewBar) previewBar.style.display = "none";
-  if (previewThumb) previewThumb.innerHTML = "";
+  if (previewThumb) {
+    previewThumb.src = "";
+    previewThumb.style.display = "none";
+  }
   if (previewName) previewName.textContent = "";
   if (fileInput) fileInput.value = "";
 }
@@ -1590,8 +1746,13 @@ async function handleInviteGroupClick() {
     if (res.ok) {
       const data = await res.json();
       const fullUrl = window.location.origin + "/" + data.url;
-      await navigator.clipboard.writeText(fullUrl);
-      showToast("Ссылка скопирована в буфер обмена!", "success");
+      try {
+        await navigator.clipboard.writeText(fullUrl);
+        showToast("Ссылка скопирована в буфер обмена!", "success");
+      } catch {
+        // Fallback for non-secure contexts / blocked clipboard
+        window.prompt("Скопируйте ссылку:", fullUrl);
+      }
     } else {
       const data = await res.json().catch(() => ({}));
       showToast(extractError(data), "error");
@@ -1602,6 +1763,59 @@ async function handleInviteGroupClick() {
 }
 
 let selectedGroupMembers = []; // Array of user objects
+
+// ── Group members modal ──────────────────────────────────────────────────────
+
+async function openGroupMembersModal() {
+  if (currentChatType !== "group" || !currentGroup) return;
+
+  const overlay = document.getElementById("groupMembersOverlay");
+  const listEl = document.getElementById("groupMembersList");
+  const metaEl = document.getElementById("groupMembersMeta");
+  if (!overlay || !listEl) return;
+
+  listEl.innerHTML = `<div style="text-align:center;color:#aaa;padding:18px 0">Загрузка…</div>`;
+  if (metaEl) metaEl.textContent = "";
+  overlay.classList.add("open");
+
+  try {
+    const res = await apiFetch(`/api/groups/${currentGroup.id}`);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      listEl.innerHTML = `<div style="text-align:center;color:#e05555;padding:18px 0">${escapeHtml(extractError(data))}</div>`;
+      return;
+    }
+    const group = await res.json();
+    const members = group.members || [];
+    if (metaEl) metaEl.textContent = `${members.length} участников`;
+
+    if (members.length === 0) {
+      listEl.innerHTML = `<div style="text-align:center;color:#aaa;padding:18px 0">Нет участников</div>`;
+      return;
+    }
+
+    listEl.innerHTML = "";
+    members.forEach((m) => {
+      const row = document.createElement("div");
+      row.style.cssText =
+        "display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid rgba(0,0,0,0.06);border-radius:12px;background:#fff;";
+
+      const user = { username: m.username, tag: m.tag, avatar: m.avatar };
+      row.innerHTML = `
+        ${avatarHTML(user, 36)}
+        <div style="flex:1;overflow:hidden">
+          <div style="font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(m.username || "")}</div>
+          <div style="font-size:12px;color:#888">@${escapeHtml(m.tag || "")}</div>
+        </div>
+        <div style="font-size:12px;color:${m.role === "owner" ? "#7c5cbf" : "#aaa"};font-weight:600">${escapeHtml(m.role || "")}</div>
+      `;
+      listEl.appendChild(row);
+    });
+  } catch (err) {
+    console.error("openGroupMembersModal error:", err);
+    listEl.innerHTML = `<div style="text-align:center;color:#e05555;padding:18px 0">Ошибка загрузки участников</div>`;
+  }
+}
 
 function openCreateGroupModal() {
   const overlay = document.getElementById("createGroupOverlay");
@@ -1765,6 +1979,10 @@ async function deleteCurrentChat() {
       return;
     }
   } else if (currentChatType === "group" && currentGroup) {
+    if (currentGroup.owner_id !== currentUser.id) {
+      alert("Удалить группу может только владелец");
+      return;
+    }
     if (!confirm("Удалить группу целиком? Это действие необратимо.")) return;
     const res = await apiFetch(`/api/groups/${currentGroup.id}`, {
       method: "DELETE",
@@ -1977,6 +2195,23 @@ function attachEventListeners() {
   const inviteGroupBtn = document.getElementById("inviteGroupBtn");
   if (inviteGroupBtn) inviteGroupBtn.addEventListener("click", handleInviteGroupClick);
 
+  const groupMembersBtn = document.getElementById("groupMembersBtn");
+  if (groupMembersBtn) groupMembersBtn.addEventListener("click", openGroupMembersModal);
+
+  const closeGroupMembersModal = document.getElementById("closeGroupMembersModal");
+  if (closeGroupMembersModal) {
+    closeGroupMembersModal.addEventListener("click", () => {
+      document.getElementById("groupMembersOverlay")?.classList.remove("open");
+    });
+  }
+
+  const groupMembersOverlay = document.getElementById("groupMembersOverlay");
+  if (groupMembersOverlay) {
+    groupMembersOverlay.addEventListener("click", (e) => {
+      if (e.target === e.currentTarget) e.currentTarget.classList.remove("open");
+    });
+  }
+
   const messageInput = document.getElementById("messageInput");
   if (messageInput) {
     messageInput.addEventListener("keydown", (e) => {
@@ -2002,6 +2237,28 @@ function attachEventListeners() {
   const mediaPreviewRemove = document.getElementById("mediaPreviewRemove");
   if (mediaPreviewRemove)
     mediaPreviewRemove.addEventListener("click", clearMediaPreview);
+
+  const recordBtn = document.getElementById("recordBtn");
+  if (recordBtn) recordBtn.addEventListener("click", toggleVoiceRecording);
+
+  const toggleThemeBtn = document.getElementById("toggleThemeBtn");
+  if (toggleThemeBtn)
+    toggleThemeBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      toggleTheme();
+    });
+
+  const lightboxOverlay = document.getElementById("lightboxOverlay");
+  if (lightboxOverlay) {
+    lightboxOverlay.addEventListener("click", (e) => {
+      if (e.target === lightboxOverlay) closeLightbox();
+    });
+  }
+  const lightboxClose = document.getElementById("lightboxClose");
+  if (lightboxClose) lightboxClose.addEventListener("click", closeLightbox);
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closeLightbox();
+  });
 
   // ── Search ──
   let searchDebounce = null;
@@ -2075,6 +2332,7 @@ function attachEventListeners() {
 // ── Init ──────────────────────────────────────────────────────────────────────
 
 document.addEventListener("DOMContentLoaded", async () => {
+  initTheme();
   const token = localStorage.getItem("token");
   if (!token) {
     window.location.href = "login.html";
