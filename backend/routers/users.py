@@ -307,7 +307,7 @@ async def search_users(
     - Case-insensitive LIKE search.
     - Excludes the authenticated user themselves.
     - Excludes banned users.
-    - Returns at most 20 results.
+    - Returns at most 10 results.
 
     Each result: ``{id, username, tag, bio, avatar}``
     """
@@ -329,7 +329,7 @@ async def search_users(
                         WHEN username = ? THEN 1
                         ELSE 2 END,
                    username ASC
-             LIMIT 20
+             LIMIT 10
             """,
             (pattern, pattern, current_user["id"], q, q),
         ) as cur:

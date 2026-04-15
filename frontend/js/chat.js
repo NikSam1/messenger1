@@ -2,6 +2,17 @@
 const API = window.APP_API || "http://localhost:8000";
 const WS_URL = window.APP_WS || "ws://localhost:8000/ws";
 
+// ── Global Error Handling ───────────────────────────────────────────────────────
+window.addEventListener("error", (event) => {
+  console.error("Global error caught:", event.error || event.message);
+  // Optional: send to logging service like Sentry/Logstash
+});
+
+window.addEventListener("unhandledrejection", (event) => {
+  console.error("Unhandled promise rejection:", event.reason);
+  // Optional: send to logging service
+});
+
 // ── Auth check ────────────────────────────────────────────────────────────────
 const _initToken = localStorage.getItem("token");
 if (!_initToken) window.location.href = "login.html";
@@ -39,17 +50,22 @@ function authHeaders() {
 }
 
 async function apiFetch(path, options = {}) {
-  const token = localStorage.getItem("token");
-  const headers = Object.assign(
-    { Authorization: "Bearer " + token, "Content-Type": "application/json" },
-    options.headers || {},
-  );
-  const res = await fetch(`${API}${path}`, { ...options, headers });
-  if (res.status === 401) {
-    localStorage.clear();
-    window.location.href = "login.html";
+  try {
+    const token = localStorage.getItem("token");
+    const headers = Object.assign(
+      { Authorization: "Bearer " + token, "Content-Type": "application/json" },
+      options.headers || {},
+    );
+    const res = await fetch(`${API}${path}`, { ...options, headers });
+    if (res.status === 401) {
+      localStorage.clear();
+      window.location.href = "login.html";
+    }
+    return res;
+  } catch (err) {
+    console.error(`apiFetch error for ${path}:`, err);
+    throw err; // Re-throw to be caught by the caller
   }
-  return res;
 }
 
 function getInitials(username) {
@@ -1567,20 +1583,6 @@ async function handleSearch(val) {
   }
 }
 
-function openCreateGroupModal() {
-  const overlay = document.getElementById("createGroupOverlay");
-  const titleEl = document.getElementById("createGroupTitle");
-  const membersEl = document.getElementById("createGroupMembers");
-  const msgEl = document.getElementById("createGroupMessage");
-  if (titleEl) titleEl.value = "";
-  if (membersEl) membersEl.value = "";
-  if (msgEl) {
-    msgEl.textContent = "";
-    msgEl.style.display = "none";
-  }
-  if (overlay) overlay.classList.add("open");
-}
-
 async function handleInviteGroupClick() {
   if (currentChatType !== "group" || !currentGroup) return;
   try {
@@ -1599,19 +1601,124 @@ async function handleInviteGroupClick() {
   }
 }
 
+let selectedGroupMembers = []; // Array of user objects
+
+function openCreateGroupModal() {
+  const overlay = document.getElementById("createGroupOverlay");
+  const titleEl = document.getElementById("createGroupTitle");
+  const searchEl = document.getElementById("createGroupMembersSearch");
+  const resultsEl = document.getElementById("createGroupSearchResults");
+  const selectedEl = document.getElementById("selectedMembersList");
+  const msgEl = document.getElementById("createGroupMessage");
+
+  if (titleEl) titleEl.value = "";
+  if (searchEl) searchEl.value = "";
+  if (resultsEl) {
+    resultsEl.innerHTML = "";
+    resultsEl.style.display = "none";
+  }
+  selectedGroupMembers = [];
+  updateSelectedMembersUI();
+
+  if (msgEl) {
+    msgEl.textContent = "";
+    msgEl.style.display = "none";
+  }
+  if (overlay) overlay.classList.add("open");
+}
+
+let createGroupSearchTimeout = null;
+function handleCreateGroupSearch(val) {
+  const resultsEl = document.getElementById("createGroupSearchResults");
+  if (!resultsEl) return;
+
+  clearTimeout(createGroupSearchTimeout);
+  if (!val || val.length < 1) {
+    resultsEl.style.display = "none";
+    return;
+  }
+
+  createGroupSearchTimeout = setTimeout(async () => {
+    try {
+      const res = await apiFetch(
+        `/api/users/search?q=${encodeURIComponent(val)}`,
+      );
+      if (!res.ok) return;
+      const users = await res.json();
+
+      if (!users || users.length === 0) {
+        resultsEl.innerHTML = `<div style="padding:10px;color:#aaa;font-size:12px;text-align:center">Ничего не найдено</div>`;
+        resultsEl.style.display = "block";
+        return;
+      }
+
+      resultsEl.innerHTML = "";
+      users.forEach((user) => {
+        const isAdded = selectedGroupMembers.some((u) => u.id === user.id);
+        const item = document.createElement("div");
+        item.className = "search-result-item";
+        item.style.cssText = `display:flex;align-items:center;padding:8px 12px;cursor:pointer;transition:background 0.15s;${isAdded ? "opacity:0.5;pointer-events:none" : ""}`;
+        item.innerHTML = `
+          ${avatarHTML(user, 32)}
+          <div style="margin-left:10px;overflow:hidden;flex:1">
+            <div style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(user.username)}</div>
+            <div style="font-size:11px;color:#888">@${escapeHtml(user.tag || user.username)}</div>
+          </div>
+          ${isAdded ? '<span style="font-size:12px;color:#7c5cbf">✓</span>' : ""}
+        `;
+        if (!isAdded) {
+          item.addEventListener("mouseenter", () => (item.style.background = "#f5f0ff"));
+          item.addEventListener("mouseleave", () => (item.style.background = ""));
+          item.addEventListener("click", () => {
+            addMemberToSelected(user);
+            resultsEl.style.display = "none";
+            const searchInput = document.getElementById("createGroupMembersSearch");
+            if (searchInput) searchInput.value = "";
+          });
+        }
+        resultsEl.appendChild(item);
+      });
+      resultsEl.style.display = "block";
+    } catch (err) {
+      console.error("handleCreateGroupSearch error:", err);
+    }
+  }, 300);
+}
+
+function addMemberToSelected(user) {
+  if (!selectedGroupMembers.some((u) => u.id === user.id)) {
+    selectedGroupMembers.push(user);
+    updateSelectedMembersUI();
+  }
+}
+
+function removeMemberFromSelected(userId) {
+  selectedGroupMembers = selectedGroupMembers.filter((u) => u.id !== userId);
+  updateSelectedMembersUI();
+}
+
+function updateSelectedMembersUI() {
+  const container = document.getElementById("selectedMembersList");
+  if (!container) return;
+  container.innerHTML = "";
+  selectedGroupMembers.forEach((user) => {
+    const chip = document.createElement("div");
+    chip.style.cssText =
+      "display:flex;align-items:center;background:#f0eaff;padding:4px 8px;border-radius:16px;font-size:12px;color:#7c5cbf;border:1px solid #dcd0ff";
+    chip.innerHTML = `
+      <span>@${escapeHtml(user.tag || user.username)}</span>
+      <button style="background:none;border:none;color:#7c5cbf;margin-left:6px;cursor:pointer;font-weight:bold;padding:0 2px" onclick="removeMemberFromSelected(${user.id})">✕</button>
+    `;
+    container.appendChild(chip);
+  });
+}
+
 async function submitCreateGroup() {
   const titleEl = document.getElementById("createGroupTitle");
-  const membersEl = document.getElementById("createGroupMembers");
   const msgEl = document.getElementById("createGroupMessage");
   const submitBtn = document.getElementById("submitCreateGroupBtn");
   const title = titleEl ? titleEl.value.trim() : "";
-  const rawMembers = membersEl ? membersEl.value.trim() : "";
-  const member_ids = rawMembers
-    ? rawMembers
-        .split(",")
-        .map((v) => Number(v.trim()))
-        .filter((v) => Number.isInteger(v) && v > 0)
-    : [];
+  const member_tags = selectedGroupMembers.map((u) => u.tag).filter(Boolean);
 
   if (!title) {
     if (msgEl) {
@@ -1626,7 +1733,7 @@ async function submitCreateGroup() {
   try {
     const res = await apiFetch("/api/groups", {
       method: "POST",
-      body: JSON.stringify({ title, member_ids }),
+      body: JSON.stringify({ title, member_tags }),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
@@ -1743,6 +1850,13 @@ function attachEventListeners() {
   const submitCreateGroupBtn = document.getElementById("submitCreateGroupBtn");
   if (submitCreateGroupBtn)
     submitCreateGroupBtn.addEventListener("click", submitCreateGroup);
+
+  const createGroupMembersSearch = document.getElementById("createGroupMembersSearch");
+  if (createGroupMembersSearch) {
+    createGroupMembersSearch.addEventListener("input", (e) => {
+      handleCreateGroupSearch(e.target.value.trim());
+    });
+  }
 
   const createGroupOverlay = document.getElementById("createGroupOverlay");
   if (createGroupOverlay) {
@@ -1897,7 +2011,7 @@ function attachEventListeners() {
       clearTimeout(searchDebounce);
       searchDebounce = setTimeout(
         () => handleSearch(e.target.value.trim()),
-        400,
+        300,
       );
     });
   }
@@ -2014,10 +2128,12 @@ document.addEventListener("DOMContentLoaded", async () => {
   const params = new URLSearchParams(window.location.search);
   const inviteToken = params.get("invite");
   const groupInviteCode = params.get("group_invite");
+  const pathMatch = window.location.pathname.match(/\/invite\/([^/]+)$/);
+  const groupInviteFromPath = pathMatch ? decodeURIComponent(pathMatch[1]) : null;
 
-  if (groupInviteCode) {
+  if (groupInviteFromPath || groupInviteCode) {
     window.history.replaceState({}, "", window.location.pathname);
-    await joinGroupByInviteCode(groupInviteCode);
+    await joinGroupByInviteCode(groupInviteFromPath || groupInviteCode);
   } else if (inviteToken) {
     window.history.replaceState({}, "", window.location.pathname);
     await openChatByInviteToken(inviteToken);

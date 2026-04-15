@@ -3,18 +3,42 @@ routers/groups.py
 Group chats: create, list, read messages, send messages, delete group.
 """
 
-from datetime import datetime, timezone
+import json
+import logging
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 from uuid import uuid4
 
 import aiosqlite
 from database import DB_PATH
 from dependencies import get_current_user
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel, field_validator
 from routers.ws import manager
 
 router = APIRouter(prefix="/api/groups", tags=["groups"])
+
+# ── Structured Logging ──────────────────────────────────────────────────────────
+logger = logging.getLogger("groups")
+
+
+class JsonFormatter(logging.Formatter):
+    def format(self, record):
+        log_record = {
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "level": record.levelname,
+            "message": record.getMessage(),
+            "module": record.module,
+        }
+        if hasattr(record, "extra"):
+            log_record.update(record.extra)
+        return json.dumps(log_record)
+
+
+handler = logging.StreamHandler()
+handler.setFormatter(JsonFormatter())
+logger.addHandler(handler)
+logger.setLevel(logging.DEBUG)
 
 
 def _now_utc() -> str:
@@ -23,7 +47,7 @@ def _now_utc() -> str:
 
 class CreateGroupBody(BaseModel):
     title: str
-    member_ids: list[int] = []
+    member_tags: list[str] = []
 
     @field_validator("title")
     @classmethod
@@ -86,26 +110,22 @@ async def create_group(
     current_user: dict = Depends(get_current_user),
 ) -> dict:
     me = current_user["id"]
-    member_ids = sorted({uid for uid in body.member_ids if uid and uid != me})
+    member_tags = sorted({t.strip().lstrip("@") for t in body.member_tags if t.strip()})
 
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
-        if member_ids:
-            placeholders = ",".join("?" for _ in member_ids)
+        member_ids = []
+        if member_tags:
+            placeholders = ",".join("?" for _ in member_tags)
             async with db.execute(
                 f"""
                 SELECT id FROM users
-                WHERE id IN ({placeholders}) AND is_verified = 1 AND is_banned = 0
+                WHERE tag IN ({placeholders}) AND is_verified = 1 AND is_banned = 0
                 """,
-                tuple(member_ids),
+                tuple(member_tags),
             ) as cur:
-                valid_ids = {row["id"] for row in await cur.fetchall()}
-            missing = [uid for uid in member_ids if uid not in valid_ids]
-            if missing:
-                raise HTTPException(
-                    status_code=404,
-                    detail=f"Пользователи не найдены или недоступны: {missing}",
-                )
+                rows = await cur.fetchall()
+                member_ids = [row["id"] for row in rows if row["id"] != me]
 
         async with db.execute(
             "INSERT INTO group_chats (title, owner_id) VALUES (?, ?)",
@@ -113,18 +133,34 @@ async def create_group(
         ) as cur:
             group_id = cur.lastrowid
 
+        # Add owner
         await db.execute(
             "INSERT INTO group_members (group_id, user_id, role) VALUES (?, ?, 'owner')",
             (group_id, me),
         )
+
+        # Add members
         for uid in member_ids:
             await db.execute(
                 "INSERT INTO group_members (group_id, user_id, role) VALUES (?, ?, 'member')",
                 (group_id, uid),
             )
+
         await db.commit()
 
-    return {"id": group_id, "title": body.title, "members_count": len(member_ids) + 1}
+        # Notify via WS
+        for uid in [me] + member_ids:
+            if manager.is_online(uid):
+                await manager.send_to_user(
+                    uid,
+                    {
+                        "type": "group_created",
+                        "group_id": group_id,
+                        "title": body.title,
+                    },
+                )
+
+    return {"id": group_id, "title": body.title, "members_added": len(member_ids)}
 
 
 @router.get("", summary="Мои группы")
@@ -387,7 +423,7 @@ async def get_group_invite(
     return {
         "id": link["id"],
         "code": link["code"],
-        "url": f"?group_invite={link['code']}",
+        "url": f"invite/{link['code']}",
         "expires_at": link["expires_at"],
     }
 
@@ -395,6 +431,7 @@ async def get_group_invite(
 @router.post("/{group_id}/invite", summary="Создать пригласительную ссылку")
 async def create_group_invite(
     group_id: int,
+    max_uses: Optional[int] = Query(None, description="Максимальное количество использований"),
     current_user: dict = Depends(get_current_user),
 ) -> dict:
     """Create (or regenerate) an invite link for the group (owner only)."""
@@ -416,7 +453,9 @@ async def create_group_invite(
                 detail="Ссылку может создать только владелец группы",
             )
 
-        code = uuid4().hex[:12]
+        # token format: uuidv4 + unix-ms timestamp (traceable, sortable, unique)
+        code = f"{uuid4()}-{int(datetime.now(timezone.utc).timestamp() * 1000)}"
+        expires_at = (datetime.now(timezone.utc) + timedelta(days=7)).strftime("%Y-%m-%d %H:%M:%S")
 
         async with db.execute(
             "SELECT id FROM group_invite_links WHERE group_id = ? AND is_active = 1",
@@ -431,8 +470,8 @@ async def create_group_invite(
             )
 
         async with db.execute(
-            "INSERT INTO group_invite_links (group_id, code, created_by) VALUES (?, ?, ?)",
-            (group_id, code, me),
+            "INSERT INTO group_invite_links (group_id, code, created_by, expires_at, max_uses) VALUES (?, ?, ?, ?, ?)",
+            (group_id, code, me, expires_at, max_uses),
         ) as cur:
             link_id = cur.lastrowid
         await db.commit()
@@ -440,7 +479,8 @@ async def create_group_invite(
     return {
         "id": link_id,
         "code": code,
-        "url": f"?group_invite={code}",
+        "url": f"invite/{code}",
+        "expires_at": expires_at,
     }
 
 
@@ -480,17 +520,31 @@ async def delete_group_invite(
 @router.get("/invite/{code}", summary="Присоединиться к группе по коду")
 async def join_by_invite(
     code: str,
+    request: Request,
     current_user: dict = Depends(get_current_user),
 ) -> dict:
     """Join a group using an invite link code."""
     me = current_user["id"]
+    ip = request.client.host if request.client else "unknown"
+    ua = request.headers.get("user-agent", "unknown")
+    correlation_id = request.headers.get("x-correlation-id") or uuid4().hex
+
+    log_extra = {
+        "extra": {
+            "correlation_id": correlation_id,
+            "ip": ip,
+            "user_agent": ua,
+            "user_id": me,
+            "code": code,
+        }
+    }
 
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
 
         async with db.execute(
             """
-            SELECT gil.id, gil.group_id, gil.is_active, gil.expires_at,
+            SELECT gil.id, gil.group_id, gil.is_active, gil.expires_at, gil.max_uses, gil.used_count,
                    gc.title, gc.owner_id
               FROM group_invite_links gil
               JOIN group_chats gc ON gc.id = gil.group_id
@@ -501,22 +555,45 @@ async def join_by_invite(
             link = await cur.fetchone()
 
         if not link:
+            logger.warning("Invite code not found", extra=log_extra["extra"])
             raise HTTPException(status_code=404, detail="Пригласительная ссылка не найдена")
         if not link["is_active"]:
+            logger.warning("Invite code inactive", extra=log_extra["extra"])
             raise HTTPException(status_code=410, detail="Пригласительная ссылка больше недействительна")
+
+        if link["expires_at"]:
+            expires_dt = datetime.strptime(link["expires_at"], "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+            if datetime.now(timezone.utc) > expires_dt:
+                await db.execute("UPDATE group_invite_links SET is_active = 0 WHERE id = ?", (link["id"],))
+                await db.commit()
+                logger.warning("Invite code expired", extra=log_extra["extra"])
+                raise HTTPException(status_code=410, detail="Срок действия ссылки истек")
+
+        if link["max_uses"] is not None and link["used_count"] >= link["max_uses"]:
+            await db.execute("UPDATE group_invite_links SET is_active = 0 WHERE id = ?", (link["id"],))
+            await db.commit()
+            logger.warning("Invite code max uses reached", extra=log_extra["extra"])
+            raise HTTPException(status_code=410, detail="Максимальное количество использований ссылки достигнуто")
 
         async with db.execute(
             "SELECT 1 FROM group_members WHERE group_id = ? AND user_id = ?",
             (link["group_id"], me),
         ) as cur:
             if await cur.fetchone():
+                logger.info("User already member of group", extra=log_extra["extra"])
                 raise HTTPException(status_code=409, detail="Вы уже состоите в этой группе")
 
         await db.execute(
             "INSERT INTO group_members (group_id, user_id, role) VALUES (?, ?, 'member')",
             (link["group_id"], me),
         )
+        await db.execute(
+            "UPDATE group_invite_links SET used_count = used_count + 1 WHERE id = ?",
+            (link["id"],),
+        )
         await db.commit()
+
+        logger.info("User joined group via invite", extra=log_extra["extra"])
 
         for uid in manager.online_user_ids():
             if uid != me:
@@ -535,6 +612,19 @@ async def join_by_invite(
         "title": link["title"],
         "message": "Вы присоединились к группе",
     }
+
+
+@router.post("/invite/{code}", summary="Присоединиться к группе по коду (POST)")
+async def join_by_invite_post(
+    code: str,
+    request: Request,
+    current_user: dict = Depends(get_current_user),
+) -> dict:
+    """
+    Frontend historically calls POST /api/groups/invite/{code}.
+    Keep this alias to avoid breaking deep links and old clients.
+    """
+    return await join_by_invite(code=code, request=request, current_user=current_user)
 
 
 # ---------------------------------------------------------------------------

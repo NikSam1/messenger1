@@ -190,6 +190,8 @@ async def init_db() -> None:
                 code       TEXT    NOT NULL UNIQUE,
                 created_by INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
                 expires_at TEXT,
+                max_uses   INTEGER,
+                used_count INTEGER NOT NULL DEFAULT 0,
                 is_active  INTEGER NOT NULL DEFAULT 1,
                 created_at TEXT    NOT NULL DEFAULT (datetime('now'))
             )
@@ -210,6 +212,8 @@ async def init_db() -> None:
             "ALTER TABLE users ADD COLUMN is_banned INTEGER NOT NULL DEFAULT 0",
             "ALTER TABLE users ADD COLUMN last_seen TEXT",
             "ALTER TABLE users ADD COLUMN share_token TEXT",
+            "ALTER TABLE group_invite_links ADD COLUMN max_uses   INTEGER",
+            "ALTER TABLE group_invite_links ADD COLUMN used_count INTEGER NOT NULL DEFAULT 0",
         ]
         for stmt in _column_migrations:
             try:
